@@ -1,6 +1,7 @@
 package com.example.banking.config;
 
 import com.example.banking.service.CacheService;
+import com.example.banking.util.JwtUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -18,6 +19,9 @@ public class JwtFilter extends OncePerRequestFilter {
 
     @Autowired
     private CacheService cacheService;
+    
+    @Autowired
+    private JwtUtil jwtUtil;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, 
@@ -28,25 +32,21 @@ public class JwtFilter extends OncePerRequestFilter {
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
             
-            if (token.startsWith("mock-jwt-token-")) {
-                String username = token.substring("mock-jwt-token-".length());
-                
-                // Validate session exists in Redis (user must have logged in)
+            if (jwtUtil.validateToken(token)) {
+                String username = jwtUtil.getUsernameFromToken(token);
                 String cachedToken = cacheService.getUserSession(username);
+                
                 if (token.equals(cachedToken)) {
-                    
                     UsernamePasswordAuthenticationToken auth = 
                         new UsernamePasswordAuthenticationToken(username, null, new ArrayList<>());
                     SecurityContextHolder.getContext().setAuthentication(auth);
                 } else {
-                    // Invalid token - send 401 error
                     response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                     response.setContentType("application/json");
                     response.getWriter().write("{\"error\":\"Invalid or expired token\"}");
                     return;
                 }
             } else {
-                // Invalid token format - send 401 error
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 response.setContentType("application/json");
                 response.getWriter().write("{\"error\":\"Invalid token format\"}");

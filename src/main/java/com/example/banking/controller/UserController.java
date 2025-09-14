@@ -6,6 +6,7 @@ import com.example.banking.dto.UserDto;
 import com.example.banking.entity.User;
 import com.example.banking.exception.InvalidCredentialsException;
 import com.example.banking.service.UserService;
+import com.example.banking.util.JwtUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +21,9 @@ public class UserController {
     
     @Autowired
     private UserService userService;
+    
+    @Autowired
+    private JwtUtil jwtUtil;
 
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(@RequestBody Map<String, String> request) {
@@ -44,9 +48,10 @@ public class UserController {
             throw new InvalidCredentialsException("Invalid username or password");
         }
         
-        String token = "mock-jwt-token-" + userOpt.get().getUsername();
-        userService.cacheUserSession(userOpt.get().getUsername(), token);
-        return ResponseEntity.ok(new JwtResponse(token, userOpt.get().getUsername()));
+        User user = userOpt.get();
+        String token = jwtUtil.generateToken(user.getUsername(), user.getId());
+        userService.cacheUserSession(user.getUsername(), token);
+        return ResponseEntity.ok(new JwtResponse(token, user.getUsername()));
     }
 
     @PostMapping("/logout")
