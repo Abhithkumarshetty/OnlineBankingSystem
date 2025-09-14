@@ -2,10 +2,12 @@ package com.example.banking.controller;
 
 import com.example.banking.dto.TransactionHistoryDto;
 import com.example.banking.entity.Account;
+import com.example.banking.entity.PaymentRequest;
 import com.example.banking.entity.Transaction;
 import com.example.banking.exception.AccountNotFoundException;
 import com.example.banking.mapper.TransactionMapper;
 import com.example.banking.service.AccountService;
+import com.example.banking.service.PaymentRequestService;
 import com.example.banking.service.TransactionService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,6 +32,9 @@ public class TransactionController {
     
     @Autowired
     private TransactionMapper transactionMapper;
+    
+    @Autowired
+    private PaymentRequestService paymentRequestService;
 
     @PostMapping("/deposit")
     public ResponseEntity<?> deposit(@RequestBody Map<String, Object> request) {
@@ -41,6 +46,11 @@ public class TransactionController {
         Account account = accountService.getAccountByNumber(accountNumber)
                 .orElseThrow(() -> new AccountNotFoundException("Account not found: " + accountNumber));
         
+        // Create payment request and send to Kafka
+        PaymentRequest paymentRequest = paymentRequestService.createPaymentRequest(
+            accountNumber, amount, PaymentRequest.PaymentType.DEPOSIT, description, account.getUser().getId());
+        
+        // Continue with synchronous flow
         Transaction transaction = transactionService.deposit(account, amount, description);
         return ResponseEntity.ok(transactionMapper.toResponseDto(transaction, "Deposit done successfully"));
     }
@@ -55,6 +65,11 @@ public class TransactionController {
         Account account = accountService.getAccountByNumber(accountNumber)
                 .orElseThrow(() -> new AccountNotFoundException("Account not found: " + accountNumber));
         
+        // Create payment request and send to Kafka
+        PaymentRequest paymentRequest = paymentRequestService.createPaymentRequest(
+            accountNumber, amount, PaymentRequest.PaymentType.WITHDRAWAL, description, account.getUser().getId());
+        
+        // Continue with synchronous flow
         Transaction transaction = transactionService.withdraw(account, amount, description);
         return ResponseEntity.ok(transactionMapper.toResponseDto(transaction, "Withdrwal done successfully"));
     }
